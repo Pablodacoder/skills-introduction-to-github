@@ -5,8 +5,6 @@ import java.util.Scanner;
 import java.util.concurrent.TimeUnit;
 import org.json.JSONObject;
 import org.json.JSONArray;
-import java.util.HashMap;
-import java.util.Map;
 
 public class NBAStatsPredictor {
 
@@ -41,15 +39,7 @@ public class NBAStatsPredictor {
         input.close();
     }
 
-    // Updated fetchPlayerID
-    private static final Map<String, Integer> playerIdCache = new HashMap<>();
-
     private static int fetchPlayerId(String playerName) {
-        String lowerCaseName = playerName.toLowerCase();
-        if (playerIdCache.containsKey(lowerCaseName)) {
-            return playerIdCache.get(lowerCaseName);
-        }
-
         try {
             URL url = new URL(API_URL + playerName.replace(" ", "%20"));
             HttpURLConnection conn = makeRequest(url);
@@ -66,9 +56,7 @@ public class NBAStatsPredictor {
             JSONArray data = jsonResponse.getJSONArray("data");
 
             if (data.length() > 0) {
-                int id = data.getJSONObject(0).getInt("id");
-                playerIdCache.put(lowerCaseName, id); // Cache it
-                return id;
+                return data.getJSONObject(0).getInt("id");
             } else {
                 return -1;
             }
@@ -121,11 +109,18 @@ public class NBAStatsPredictor {
                 attempts++;
                 System.out.println("Retrying API request... Attempt " + (attempts + 1));
                 try {
-                    TimeUnit.SECONDS.sleep(2);
-                } catch (InterruptedException ignored) {
+                    if (conn.getResponseCode() == 200) {
+                        return conn;
+                    }
+                } catch (IOException e) {
+                    attempts++;
+                    System.out.println("Retrying API request... Attempt " + (attempts + 1));
+                    try {
+                        TimeUnit.SECONDS.sleep(2);
+                    } catch (InterruptedException ignored) {
+                    }
                 }
             }
+            return conn;
         }
-        return conn;
     }
-}
